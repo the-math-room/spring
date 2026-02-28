@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hello World Test</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; }
+        #output { margin-top: 20px; color: blue; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>GitHub Pages Bootloader</h1>
+    <p>If you can see this, your site is live.</p>
+    
+    <button id="testBtn">Click Me</button>
+    <div id="output"></div>
+
+    <script>
+        const btn = document.getElementById('testBtn');
+        const output = document.getElementById('output');
+
+        btn.onclick = () => {
+            const now = new Date().toLocaleTimeString();
+            output.innerText = "Button clicked at: " + now;
+            console.log("Local timestamp generated: " + now);
+        };
+    </script>
+
+</body>
+</html>
