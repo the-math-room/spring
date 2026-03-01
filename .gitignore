@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+/.vitest-result
+/coverage
+
+# Environment / Keys (just in case you use them later)
+.env
+.env.local
+
+# OS Metadata
+.DS_Store
+Thumbs.db

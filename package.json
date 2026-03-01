@@ -1,0 +1,20 @@
+{
+  "name": "math-room",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "vitest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@github-classroom:the-math-room/spring.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "vitest": "^4.0.18"
+  }
+
+}
