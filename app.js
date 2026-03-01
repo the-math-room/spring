@@ -44,25 +44,6 @@ const handleLogout = async () => {
   }
 };
 
-const handleDiagnostic = async () => {
-  // 1. Turns into "Pinging..."
-  ui.setButtonLoading(elements.btn, true, 'Pinging...');
-
-  try {
-    await db.recordAttempt(supabase, {
-      student_id: null,
-      level: 1,
-      outcome: 'correct',
-    });
-    ui.updateStatus(elements.output, 'Database Connection: OK', 'success');
-  } catch (err) {
-    ui.updateStatus(elements.output, 'DB Error: ' + err.message, 'error');
-  } finally {
-    // 2. Turns back into "Run Diagnostic Ping" (or whatever was there)
-    ui.setButtonLoading(elements.btn, false);
-  }
-};
-
 // 3. Initialization Logic
 const initApp = async () => {
   try {
@@ -95,6 +76,5 @@ const initApp = async () => {
 // 4. Safe Listener Binding (Using Optional Chaining)
 elements.loginBtn?.addEventListener('click', handleLogin);
 elements.logoutBtn?.addEventListener('click', handleLogout);
-elements.btn?.addEventListener('click', handleDiagnostic);
 
 initApp();
