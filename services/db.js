@@ -1,13 +1,10 @@
-/**
- * Records a student attempt in the database.
- * @param {Object} supabase - The injected supabase client
- * @param {string} studentName 
- */
+import { CONFIG } from '../config.js'; // Add this import
+
 export const recordAttempt = async (supabase, studentName) => {
     if (!studentName) throw new Error("Student name is required");
 
     const { data, error } = await supabase
-        .from('timestamps')
+        .from(CONFIG.TABLES.TIMESTAMPS)
         .insert([{ student_name: studentName }])
         .select();
 
