@@ -1,31 +1,21 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Math Landing Page</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-        button { padding: 15px 30px; font-size: 1.2rem; cursor: pointer; }
-        #output { margin-top: 20px; color: blue; font-weight: bold; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Exercise Tool</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-    <h1>GitHub Pages Bootloader</h1>
-    <p>If you can see this, your site is live.</p>
+    <h1>Classroom Bootloader</h1>
+    <p>Status: <span id="connectionStatus">Connecting...</span></p>
     
-    <button id="testBtn">Click Me</button>
-    <div id="output"></div>
+    <main>
+        <button id="testBtn">Submit Attempt</button>
+        <div id="output"></div>
+    </main>
 
-    <script>
-        const btn = document.getElementById('testBtn');
-        const output = document.getElementById('output');
-
-        btn.onclick = () => {
-            const now = new Date().toLocaleTimeString();
-            output.innerText = "Button clicked at: " + now;
-            console.log("Local timestamp generated: " + now);
-        };
-    </script>
-
+    <script type="module" src="app.js"></script>
 </body>
 </html>
