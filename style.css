@@ -1,29 +1,33 @@
-body { 
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-    text-align: center; 
-    margin-top: 50px; 
-    background-color: #f4f7f6;
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  text-align: center;
+  margin-top: 50px;
+  background-color: #f4f7f6;
 }
 
-button { 
-    padding: 15px 30px; 
-    font-size: 1.2rem; 
-    cursor: pointer;
-    background-color: #3b82f6;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    transition: background 0.2s;
+button {
+  padding: 15px 30px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  transition: background 0.2s;
 }
 
 button:hover {
-    background-color: #2563eb;
+  background-color: #2563eb;
 }
 
-#output { 
-    margin-top: 20px; 
-    font-weight: bold; 
+#output {
+  margin-top: 20px;
+  font-weight: bold;
 }
 
-.success { color: #059669; }
-.error { color: #dc2626; }
+.success {
+  color: #059669;
+}
+.error {
+  color: #dc2626;
+}
