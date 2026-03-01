@@ -12,6 +12,10 @@ const elements = {
   btn: document.getElementById('testBtn'),
   output: document.getElementById('output'),
   status: document.getElementById('connectionStatus'),
+  loginBtn: document.getElementById('loginBtn'),
+  emailInput: document.getElementById('teacherEmail'),
+  passInput: document.getElementById('teacherPassword'),
+  loginZone: document.getElementById('login-zone'),
 };
 
 // 3. Main Logic: Handlers
@@ -20,32 +24,46 @@ const handleSubmission = async () => {
   ui.setButtonLoading(elements.btn, true);
 
   try {
-    // Now using the current session user ID if we wanted,
-    // but sticking to your 'Student Alpha' for now.
-    await db.recordAttempt(supabase, 'Student Alpha');
-
+    await db.recordAttempt(supabase, 'Teacher Session'); // Updated name for clarity
     const latency = (performance.now() - startTime).toFixed(2);
     ui.updateStatus(elements.output, `Saved! Latency: ${latency}ms`, 'success');
   } catch (err) {
-    console.error('Submission failed:', err);
     ui.updateStatus(elements.output, `Error: ${err.message}`, 'error');
   } finally {
     ui.setButtonLoading(elements.btn, false);
   }
 };
 
-// 4. Initialization & Auth
+const handleLogin = async () => {
+  const email = elements.emailInput.value;
+  const password = elements.passInput.value;
+
+  try {
+    ui.updateStatus(elements.output, 'Logging in...', 'loading');
+
+    // This will now find the function we just added to services/auth.js
+    await auth.signInWithPassword(supabase, email, password);
+
+    initApp();
+  } catch (err) {
+    ui.updateStatus(elements.output, 'Login Failed: ' + err.message, 'error');
+  }
+};
+
+// 4. Initialization
 const initApp = async () => {
   try {
     const user = await auth.getCurrentUser(supabase);
 
     if (!user) {
-      ui.updateStatus(elements.output, 'Teacher login required.', 'error');
-      elements.btn.style.display = 'none'; // Hide the button from non-teachers
-      // Optional: showLoginUI();
+      ui.updateStatus(elements.output, 'Teacher login required.', 'info');
+      elements.btn.style.display = 'none';
+      elements.loginZone.style.display = 'block';
     } else {
       ui.updateStatus(elements.output, `Welcome, ${user.email}`, 'success');
       elements.btn.style.display = 'block';
+      elements.loginZone.style.display = 'none';
+      elements.status.innerText = 'Connected';
       initRealtime();
     }
   } catch (err) {
@@ -53,38 +71,8 @@ const initApp = async () => {
   }
 };
 
-// 5. Realtime Subscription
-const initRealtime = () => {
-  return supabase
-    .channel('classroom-activity')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: CONFIG.TABLES.TIMESTAMPS },
-      (payload) => {
-        console.log('🔔 Realtime Update:', payload.new);
-      }
-    )
-    .subscribe();
-};
-
-// 6. Execution
+// 5. Event Listeners
 elements.btn.addEventListener('click', handleSubmission);
+elements.loginBtn.addEventListener('click', handleLogin);
+
 initApp();
-
-const loginBtn = document.getElementById('loginBtn');
-const emailInput = document.getElementById('teacherEmail');
-
-loginBtn.addEventListener('click', async () => {
-  const email = emailInput.value;
-  try {
-    ui.updateStatus(elements.output, 'Sending magic link...', 'loading');
-    await auth.signInWithMagicLink(supabase, email);
-    ui.updateStatus(
-      elements.output,
-      'Check your email for the login link!',
-      'success'
-    );
-  } catch (err) {
-    ui.updateStatus(elements.output, 'Login Error: ' + err.message, 'error');
-  }
-});

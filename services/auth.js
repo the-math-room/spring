@@ -1,14 +1,13 @@
 /**
- * Sends a Magic Link to the teacher's email.
+ * Signs in the teacher using email and password.
  */
-export const signInWithMagicLink = async (supabase, email) => {
-  const { error } = await supabase.auth.signInWithOtp({
-    email: email,
-    options: {
-      emailRedirectTo: window.location.origin, // Returns you to your GH Pages site
-    },
+export const signInWithPassword = async (supabase, email, password) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
   });
   if (error) throw error;
+  return data.user;
 };
 
 export const signOut = async (supabase) => {
