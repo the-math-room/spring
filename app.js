@@ -2,12 +2,11 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { CONFIG } from './config.js';
 import * as db from './services/db.js';
 import * as ui from './services/ui.js';
-import * as auth from './services/auth.js'; // Moved imports to top
+import * as auth from './services/auth.js';
 
-// 1. Initialize Client
 const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
-// 2. Cache DOM Elements
+// 1. Safe Element Selection
 const elements = {
   btn: document.getElementById('testBtn'),
   output: document.getElementById('output'),
@@ -20,37 +19,17 @@ const elements = {
   teacherActions: document.getElementById('teacher-actions'),
 };
 
-// 3. Main Logic: Handlers
-const handleSubmission = async () => {
-  const startTime = performance.now();
-  ui.setButtonLoading(elements.btn, true);
-
-  try {
-    await db.recordAttempt(supabase, {
-      student_id: null, // Or a specific 'Teacher' UUID
-      level: 1,
-      outcome: 'correct',
-    });
-    const latency = (performance.now() - startTime).toFixed(2);
-    ui.updateStatus(elements.output, `Saved! Latency: ${latency}ms`, 'success');
-  } catch (err) {
-    ui.updateStatus(elements.output, `Error: ${err.message}`, 'error');
-  } finally {
-    ui.setButtonLoading(elements.btn, false);
-  }
-};
-
+// 2. Handlers
 const handleLogin = async () => {
-  const email = elements.emailInput.value;
-  const password = elements.passInput.value;
+  const email = elements.emailInput?.value;
+  const password = elements.passInput?.value;
+
+  if (!email || !password) return;
 
   try {
     ui.updateStatus(elements.output, 'Logging in...', 'loading');
-
-    // This will now find the function we just added to services/auth.js
     await auth.signInWithPassword(supabase, email, password);
-
-    initApp();
+    await initApp();
   } catch (err) {
     ui.updateStatus(elements.output, 'Login Failed: ' + err.message, 'error');
   }
@@ -58,40 +37,61 @@ const handleLogin = async () => {
 
 const handleLogout = async () => {
   try {
-    ui.updateStatus(elements.output, 'Signing out...', 'info');
     await auth.signOut(supabase);
-    // initApp will check the session, find it empty, and show the login zone
-    initApp();
+    await initApp();
   } catch (err) {
-    ui.updateStatus(elements.output, 'Logout Failed: ' + err.message, 'error');
+    console.error('Logout error:', err);
   }
 };
 
-// 4. Initialization
+const handleDiagnostic = async () => {
+  ui.setButtonLoading(elements.btn, true);
+  try {
+    await db.recordAttempt(supabase, {
+      student_id: null,
+      level: 1,
+      outcome: 'correct',
+    });
+    ui.updateStatus(elements.output, 'Database Connection: OK', 'success');
+  } catch (err) {
+    ui.updateStatus(elements.output, 'DB Error: ' + err.message, 'error');
+  } finally {
+    ui.setButtonLoading(elements.btn, false);
+  }
+};
+
+// 3. Initialization Logic
 const initApp = async () => {
   try {
     const user = await auth.getCurrentUser(supabase);
 
     if (!user) {
-      ui.updateStatus(elements.output, 'Teacher login required.', 'info');
-      elements.loginZone.style.display = 'block';
-      elements.teacherActions.style.display = 'none'; // Keep hidden
+      if (elements.loginZone) elements.loginZone.style.display = 'block';
+      if (elements.teacherActions)
+        elements.teacherActions.style.display = 'none';
+      if (elements.status) elements.status.innerText = 'Not Connected';
     } else {
-      ui.updateStatus(elements.output, `Welcome, ${user.email}`, 'success');
-      elements.status.innerText = 'Connected';
+      if (elements.loginZone) elements.loginZone.style.display = 'none';
+      if (elements.teacherActions)
+        elements.teacherActions.style.display = 'block';
+      if (elements.status) elements.status.innerText = 'Connected';
 
-      // THE KEY CHANGE:
-      elements.loginZone.style.display = 'none'; // Hide login
-      elements.teacherActions.style.display = 'block'; // Show Whiteboard Link
+      // Verification Ping
+      const students = await db.fetchStudents(supabase);
+      ui.updateStatus(
+        elements.output,
+        `${students.length} students in roster. Ready!`,
+        'success'
+      );
     }
   } catch (err) {
-    ui.updateStatus(elements.output, 'Session Error: ' + err.message, 'error');
+    console.error('Init error:', err);
   }
 };
 
-// 5. Event Listeners
-elements.btn.addEventListener('click', handleSubmission);
-elements.loginBtn.addEventListener('click', handleLogin);
-elements.logoutBtn.addEventListener('click', handleLogout);
+// 4. Safe Listener Binding (Using Optional Chaining)
+elements.loginBtn?.addEventListener('click', handleLogin);
+elements.logoutBtn?.addEventListener('click', handleLogout);
+elements.btn?.addEventListener('click', handleDiagnostic);
 
 initApp();

@@ -73,3 +73,35 @@ button:hover {
   color: #0f172a;
   border-color: #cbd5e1;
 }
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  max-width: 800px;
+  margin: 0 auto 30px auto;
+  text-align: left;
+}
+
+.system-check {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.system-check h3 {
+  margin-top: 0;
+  font-size: 1rem;
+  color: #64748b;
+}
+.system-check ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.system-check li {
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #0f172a;
+}
