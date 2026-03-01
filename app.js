@@ -37,29 +37,19 @@ const handleSubmission = async () => {
 // 4. Initialization & Auth
 const initApp = async () => {
   try {
-    elements.btn.disabled = true; // Lockdown button until auth is ready
-    ui.updateStatus(elements.output, 'Initializing session...', 'loading');
-
-    let user = await auth.getCurrentUser(supabase);
+    const user = await auth.getCurrentUser(supabase);
 
     if (!user) {
-      user = await auth.signInAnonymously(supabase);
+      ui.updateStatus(elements.output, 'Teacher login required.', 'error');
+      elements.btn.style.display = 'none'; // Hide the button from non-teachers
+      // Optional: showLoginUI();
+    } else {
+      ui.updateStatus(elements.output, `Welcome, ${user.email}`, 'success');
+      elements.btn.style.display = 'block';
+      initRealtime();
     }
-
-    // Update UI with Auth Status
-    elements.status.innerText = 'Connected';
-    ui.updateStatus(
-      elements.output,
-      `Ready! Student ID: ${user.id.slice(0, 8)}`,
-      'success'
-    );
-    elements.btn.disabled = false;
-
-    // Start listening for changes
-    initRealtime();
   } catch (err) {
-    console.error('Initialization error:', err);
-    ui.updateStatus(elements.output, 'Auth Failed: ' + err.message, 'error');
+    ui.updateStatus(elements.output, 'Session Error: ' + err.message, 'error');
   }
 };
 
@@ -80,3 +70,21 @@ const initRealtime = () => {
 // 6. Execution
 elements.btn.addEventListener('click', handleSubmission);
 initApp();
+
+const loginBtn = document.getElementById('loginBtn');
+const emailInput = document.getElementById('teacherEmail');
+
+loginBtn.addEventListener('click', async () => {
+  const email = emailInput.value;
+  try {
+    ui.updateStatus(elements.output, 'Sending magic link...', 'loading');
+    await auth.signInWithMagicLink(supabase, email);
+    ui.updateStatus(
+      elements.output,
+      'Check your email for the login link!',
+      'success'
+    );
+  } catch (err) {
+    ui.updateStatus(elements.output, 'Login Error: ' + err.message, 'error');
+  }
+});

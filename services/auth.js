@@ -1,7 +1,19 @@
-export const signInAnonymously = async (supabase) => {
-  const { data, error } = await supabase.auth.signInAnonymously();
+/**
+ * Sends a Magic Link to the teacher's email.
+ */
+export const signInWithMagicLink = async (supabase, email) => {
+  const { error } = await supabase.auth.signInWithOtp({
+    email: email,
+    options: {
+      emailRedirectTo: window.location.origin, // Returns you to your GH Pages site
+    },
+  });
   if (error) throw error;
-  return data.user;
+};
+
+export const signOut = async (supabase) => {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 };
 
 export const getCurrentUser = async (supabase) => {
