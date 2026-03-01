@@ -45,7 +45,9 @@ const handleLogout = async () => {
 };
 
 const handleDiagnostic = async () => {
-  ui.setButtonLoading(elements.btn, true);
+  // 1. Turns into "Pinging..."
+  ui.setButtonLoading(elements.btn, true, 'Pinging...');
+
   try {
     await db.recordAttempt(supabase, {
       student_id: null,
@@ -56,6 +58,7 @@ const handleDiagnostic = async () => {
   } catch (err) {
     ui.updateStatus(elements.output, 'DB Error: ' + err.message, 'error');
   } finally {
+    // 2. Turns back into "Run Diagnostic Ping" (or whatever was there)
     ui.setButtonLoading(elements.btn, false);
   }
 };
