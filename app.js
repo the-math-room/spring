@@ -57,3 +57,26 @@ const initRealtime = () => {
 // 5. Wire up everything
 elements.btn.addEventListener('click', handleSubmission);
 initRealtime();
+
+import * as auth from './services/auth.js';
+
+// ... existing init ...
+
+const initApp = async () => {
+    try {
+        let user = await auth.getCurrentUser(supabase);
+        
+        if (!user) {
+            ui.updateStatus(elements.output, "Signing you in...", "loading");
+            user = await auth.signInAnonymously(supabase);
+        }
+        
+        ui.updateStatus(elements.output, `Ready! (ID: ${user.id.slice(0,8)})`, "success");
+        elements.btn.disabled = false;
+        
+    } catch (err) {
+        ui.updateStatus(elements.output, "Auth Failed: " + err.message, "error");
+    }
+};
+
+initApp();
