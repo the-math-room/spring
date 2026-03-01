@@ -2,6 +2,7 @@ import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 import { CONFIG } from './config.js';
 import * as db from './services/db.js';
 import * as ui from './services/ui.js';
+import * as auth from './services/auth.js'; // Moved imports to top
 
 // 1. Initialize Client
 const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
@@ -9,26 +10,22 @@ const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 // 2. Cache DOM Elements
 const elements = {
     btn: document.getElementById('testBtn'),
-    output: document.getElementById('output')
+    output: document.getElementById('output'),
+    status: document.getElementById('connectionStatus')
 };
 
 // 3. Main Logic: Handlers
 const handleSubmission = async () => {
-    const startTime = performance.now(); // Start timer for latency check
+    const startTime = performance.now();
     ui.setButtonLoading(elements.btn, true);
     
     try {
-        // We'll pass 'Student Alpha' or any identifier you want
+        // Now using the current session user ID if we wanted, 
+        // but sticking to your 'Student Alpha' for now.
         await db.recordAttempt(supabase, 'Student Alpha');
         
         const latency = (performance.now() - startTime).toFixed(2);
-        const timeStr = new Date().toLocaleTimeString();
-        
-        ui.updateStatus(
-            elements.output, 
-            `Saved at ${timeStr} (Latency: ${latency}ms)`, 
-            'success'
-        );
+        ui.updateStatus(elements.output, `Saved! Latency: ${latency}ms`, 'success');
     } catch (err) {
         console.error("Submission failed:", err);
         ui.updateStatus(elements.output, `Error: ${err.message}`, 'error');
@@ -37,7 +34,33 @@ const handleSubmission = async () => {
     }
 };
 
-// 4. Realtime Subscription: The "Live Feed"
+// 4. Initialization & Auth
+const initApp = async () => {
+    try {
+        elements.btn.disabled = true; // Lockdown button until auth is ready
+        ui.updateStatus(elements.output, "Initializing session...", "loading");
+
+        let user = await auth.getCurrentUser(supabase);
+        
+        if (!user) {
+            user = await auth.signInAnonymously(supabase);
+        }
+        
+        // Update UI with Auth Status
+        elements.status.innerText = "Connected";
+        ui.updateStatus(elements.output, `Ready! Student ID: ${user.id.slice(0,8)}`, "success");
+        elements.btn.disabled = false;
+
+        // Start listening for changes
+        initRealtime();
+
+    } catch (err) {
+        console.error("Initialization error:", err);
+        ui.updateStatus(elements.output, "Auth Failed: " + err.message, "error");
+    }
+};
+
+// 5. Realtime Subscription
 const initRealtime = () => {
     return supabase
         .channel('classroom-activity')
@@ -46,37 +69,11 @@ const initRealtime = () => {
             { event: 'INSERT', schema: 'public', table: CONFIG.TABLES.TIMESTAMPS },
             (payload) => {
                 console.log('🔔 Realtime Update:', payload.new);
-                // Tip: You can trigger a UI refresh here to show other students' activity!
             }
         )
-        .subscribe((status) => {
-            console.log(`Realtime status: ${status}`);
-        });
+        .subscribe();
 };
 
-// 5. Wire up everything
+// 6. Execution
 elements.btn.addEventListener('click', handleSubmission);
-initRealtime();
-
-import * as auth from './services/auth.js';
-
-// ... existing init ...
-
-const initApp = async () => {
-    try {
-        let user = await auth.getCurrentUser(supabase);
-        
-        if (!user) {
-            ui.updateStatus(elements.output, "Signing you in...", "loading");
-            user = await auth.signInAnonymously(supabase);
-        }
-        
-        ui.updateStatus(elements.output, `Ready! (ID: ${user.id.slice(0,8)})`, "success");
-        elements.btn.disabled = false;
-        
-    } catch (err) {
-        ui.updateStatus(elements.output, "Auth Failed: " + err.message, "error");
-    }
-};
-
 initApp();
