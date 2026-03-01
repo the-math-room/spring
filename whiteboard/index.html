@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whiteboard Mode</title>
+    <link rel="stylesheet" href="whiteboard.css">
+</head>
+<body>
+    <div id="whiteboard-container">
+        <aside class="sidebar">
+            <div class="stat-card">
+                <h3>Class Confidence</h3>
+                <div id="confidence-interval">Calculating...</div>
+            </div>
+            <div class="scaffolding-picker">
+                <button class="level-btn active" data-level="1">Lvl 1</button>
+                <button class="level-btn" data-level="2">Lvl 2</button>
+                <button class="level-btn" data-level="3">Lvl 3</button>
+            </div>
+        </aside>
+
+        <main class="arena">
+            <div class="student-callout">
+                <span class="label">UP NEXT:</span>
+                <h1 id="student-name">Select Level to Start</h1>
+            </div>
+
+            <div class="question-box">
+                <p id="question-text">Ready for the first question?</p>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn correct" id="btn-correct">CORRECT</button>
+                <button class="btn incorrect" id="btn-incorrect">INCORRECT</button>
+                <button class="btn absent" id="btn-absent">ABSENT</button>
+            </div>
+        </main>
+    </div>
+    <div class="student-callout">
+        <span class="label">UP NEXT:</span>
+        <h1 id="student-name">Loading...</h1>
+        <button id="btn-next-student" class="btn-shuffle">🎲 Pick Student</button>
+    </div>
+</div>
+    <script type="module" src="whiteboard.js"></script>
+</body>
+</html>

@@ -16,6 +16,7 @@ const elements = {
   emailInput: document.getElementById('teacherEmail'),
   passInput: document.getElementById('teacherPassword'),
   loginZone: document.getElementById('login-zone'),
+  teacherActions: document.getElementById('teacher-actions'),
 };
 
 // 3. Main Logic: Handlers
@@ -24,7 +25,11 @@ const handleSubmission = async () => {
   ui.setButtonLoading(elements.btn, true);
 
   try {
-    await db.recordAttempt(supabase, 'Teacher Session'); // Updated name for clarity
+    await db.recordAttempt(supabase, {
+      student_id: null, // Or a specific 'Teacher' UUID
+      level: 1,
+      outcome: 'correct',
+    });
     const latency = (performance.now() - startTime).toFixed(2);
     ui.updateStatus(elements.output, `Saved! Latency: ${latency}ms`, 'success');
   } catch (err) {
@@ -57,14 +62,15 @@ const initApp = async () => {
 
     if (!user) {
       ui.updateStatus(elements.output, 'Teacher login required.', 'info');
-      elements.btn.style.display = 'none';
       elements.loginZone.style.display = 'block';
+      elements.teacherActions.style.display = 'none'; // Keep hidden
     } else {
       ui.updateStatus(elements.output, `Welcome, ${user.email}`, 'success');
-      elements.btn.style.display = 'block';
-      elements.loginZone.style.display = 'none';
       elements.status.innerText = 'Connected';
-      initRealtime();
+
+      // THE KEY CHANGE:
+      elements.loginZone.style.display = 'none'; // Hide login
+      elements.teacherActions.style.display = 'block'; // Show Whiteboard Link
     }
   } catch (err) {
     ui.updateStatus(elements.output, 'Session Error: ' + err.message, 'error');

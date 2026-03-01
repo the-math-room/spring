@@ -31,3 +31,29 @@ button:hover {
 .error {
   color: #dc2626;
 }
+
+.launch-btn {
+  display: inline-block;
+  background-color: #8b5cf6; /* Purple for "Mode Change" */
+  color: white;
+  padding: 20px 40px;
+  text-decoration: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.39);
+  transition:
+    transform 0.2s,
+    background 0.2s;
+}
+
+.launch-btn:hover {
+  background-color: #7c3aed;
+  transform: translateY(-2px);
+}
+
+.hint {
+  color: #6b7280;
+  margin-top: 10px;
+  font-size: 0.9rem;
+}
