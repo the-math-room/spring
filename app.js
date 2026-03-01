@@ -13,6 +13,7 @@ const elements = {
   output: document.getElementById('output'),
   status: document.getElementById('connectionStatus'),
   loginBtn: document.getElementById('loginBtn'),
+  logoutBtn: document.getElementById('logoutBtn'),
   emailInput: document.getElementById('teacherEmail'),
   passInput: document.getElementById('teacherPassword'),
   loginZone: document.getElementById('login-zone'),
@@ -55,6 +56,17 @@ const handleLogin = async () => {
   }
 };
 
+const handleLogout = async () => {
+  try {
+    ui.updateStatus(elements.output, 'Signing out...', 'info');
+    await auth.signOut(supabase);
+    // initApp will check the session, find it empty, and show the login zone
+    initApp();
+  } catch (err) {
+    ui.updateStatus(elements.output, 'Logout Failed: ' + err.message, 'error');
+  }
+};
+
 // 4. Initialization
 const initApp = async () => {
   try {
@@ -80,5 +92,6 @@ const initApp = async () => {
 // 5. Event Listeners
 elements.btn.addEventListener('click', handleSubmission);
 elements.loginBtn.addEventListener('click', handleLogin);
+elements.logoutBtn.addEventListener('click', handleLogout);
 
 initApp();

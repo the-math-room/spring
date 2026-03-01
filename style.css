@@ -57,3 +57,19 @@ button:hover {
   margin-top: 10px;
   font-size: 0.9rem;
 }
+
+.secondary-btn {
+  background-color: transparent;
+  color: #64748b;
+  border: 2px solid #e2e8f0;
+  padding: 10px 20px;
+  font-size: 1rem;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+
+.secondary-btn:hover {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
