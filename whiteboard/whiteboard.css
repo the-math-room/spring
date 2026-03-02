@@ -17,17 +17,20 @@ html {
   display: grid;
   grid-template-columns: 240px 1fr;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh; /* Dynamic Viewport Height: Fixes mobile cutoff */
+  overflow: hidden;
 }
 
 /* TOOLBAR SIDEBAR */
 .sidebar {
   background: #f1f5f9;
   border-right: 2px solid #cbd5e1;
-  padding: 20px;
+  padding: 15px;
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 20px;
+  height: 100dvh;
+  overflow-y: auto; /* Allows you to scroll the tools if the phone is small */
 }
 
 .color-picker {
@@ -61,6 +64,8 @@ html {
 .arena {
   position: relative;
   background: #ffffff;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 #drawing-canvas {
@@ -100,9 +105,12 @@ html {
 
 .action-bar {
   display: flex;
-  gap: 15px;
-  pointer-events: auto; /* Buttons must be clickable */
-  z-index: 10;
+  gap: 10px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.9); /* Slight backdrop */
+  border-top: 1px solid #e2e8f0;
+  pointer-events: auto;
+  z-index: 20;
 }
 
 .btn,
@@ -131,4 +139,26 @@ html {
 .absent {
   background: #94a3b8;
   color: white;
+}
+
+@media (max-width: 768px) {
+  #whiteboard-container {
+    grid-template-columns: 1fr; /* Stack everything vertically */
+    grid-template-rows: auto 1fr;
+  }
+
+  .sidebar {
+    height: auto;
+    max-height: 40dvh; /* Tools take up the top 40% */
+    border-right: none;
+    border-bottom: 2px solid #cbd5e1;
+  }
+
+  #student-name {
+    font-size: 3rem; /* Shrink name slightly for phone screens */
+  }
+
+  .action-bar {
+    flex-wrap: wrap; /* Let buttons wrap to two rows if needed */
+  }
 }
