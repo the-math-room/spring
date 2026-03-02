@@ -11,13 +11,22 @@
         <aside class="sidebar">
             <div class="stat-card">
                 <h3>Class Confidence</h3>
-                <div id="confidence-interval">Calculating...</div>
+                <div id="confidence-interval">Ready</div>
             </div>
+
+            <div class="absence-management">
+                <h3>Marked Absent</h3>
+                <p class="hint">Tap to return to mix</p>
+                <ul id="absentee-list">
+                    </ul>
+            </div>
+
             <div class="scaffolding-picker">
                 <button class="level-btn active" data-level="1">Lvl 1</button>
                 <button class="level-btn" data-level="2">Lvl 2</button>
                 <button class="level-btn" data-level="3">Lvl 3</button>
             </div>
+
             <div class="sidebar-footer">
                 <a href="../index.html" class="exit-btn">🏠 Exit to Dashboard</a>
             </div>
@@ -26,7 +35,8 @@
         <main class="arena">
             <div class="student-callout">
                 <span class="label">UP NEXT:</span>
-                <h1 id="student-name">Select Level to Start</h1>
+                <h1 id="student-name">Loading...</h1>
+                <button id="btn-next-student" class="btn-shuffle">🎲 Pick Student</button>
             </div>
 
             <div class="question-box">
@@ -40,12 +50,7 @@
             </div>
         </main>
     </div>
-    <div class="student-callout">
-        <span class="label">UP NEXT:</span>
-        <h1 id="student-name">Loading...</h1>
-        <button id="btn-next-student" class="btn-shuffle">🎲 Pick Student</button>
-    </div>
-</div>
+
     <script type="module" src="whiteboard.js"></script>
 </body>
 </html>

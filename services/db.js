@@ -35,18 +35,14 @@ export const fetchStudents = async (supabase) => {
   }));
 };
 
-export const recordAttemptAndGetStats = async (
-  supabase,
-  { student_id, level, outcome }
-) => {
-  const { data, error } = await supabase.rpc('record_and_smooth', {
-    p_student_id: student_id,
-    p_level: level,
-    p_outcome: outcome,
+export const recordAttemptAndGetStats = async (supabase, payload) => {
+  const { error } = await supabase.rpc('record_and_smooth', {
+    p_student_id: payload.student_id,
+    p_level: payload.level,
+    p_outcome: payload.outcome,
   });
 
   if (error) throw error;
-  return data; // This returns the single float from your SQL function
 };
 
 /**
@@ -61,5 +57,43 @@ export const validateSchema = async (supabase) => {
     .limit(0);
 
   if (error) throw error;
+  return true;
+};
+
+// Fetch only students who are marked as present
+export const fetchPresentStudents = async (supabase) => {
+  const { data, error } = await supabase
+    .from('students')
+    .select('id, first_name, preferred_name')
+    .eq('is_absent', false)
+    .order('first_name', { ascending: true });
+
+  if (error) throw error;
+
+  return data.map((s) => ({
+    id: s.id,
+    displayName: s.preferred_name || s.first_name,
+  }));
+};
+
+// Toggle a student's absence on the server
+export const markAbsent = async (supabase, studentId) => {
+  const { error } = await supabase
+    .from('students')
+    .update({ is_absent: true })
+    .eq('id', studentId);
+
+  if (error) throw error;
+};
+
+// Reset everyone to present
+export const resetAllAttendance = async (supabase) => {
+  // This MUST match the name in your Supabase 'Functions' list
+  const { error } = await supabase.rpc('reset_attendance');
+
+  if (error) {
+    console.error('RPC Reset Error:', error.message);
+    throw error;
+  }
   return true;
 };

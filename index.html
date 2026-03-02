@@ -15,16 +15,14 @@
     </div>
 
     <div id="teacher-actions" style="display: none; margin-top: 30px;">
-        <h2>Classroom Dashboard</h2>
-        <p>Status: <span id="connectionStatus">Connecting...</span></p>
-        
-        <div class="dashboard-grid">
-            <a href="./whiteboard/index.html" class="launch-btn">
-                🚀 Launch Whiteboard Mode
-            </a>
+        <h2>Dashboard</h2>
+        <a href="./whiteboard/index.html" class="launch-btn">🚀 Launch Whiteboard</a>
+    
+        <div style="margin-top: 20px;">
+            <button id="resetBtn" class="secondary-btn">🔄 Reset Attendance for New Class</button>
         </div>
 
-        <button id="logoutBtn" class="secondary-btn">Sign Out</button>
+        <button id="logoutBtn" class="secondary-btn" style="color: #ef4444;">Sign Out</button>
     </div>
 
     <script type="module" src="app.js"></script>
