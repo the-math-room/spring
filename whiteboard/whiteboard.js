@@ -81,11 +81,6 @@ const endDrawing = async () => {
   if (isDrawing) {
     isDrawing = false;
     const dataUrl = canvas.toDataURL();
-    try {
-      await db.saveCanvasState(supabase, dataUrl);
-    } catch (err) {
-      console.error('Failed to save ink:', err);
-    }
   }
 };
 
