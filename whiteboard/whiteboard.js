@@ -1,6 +1,7 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { CONFIG } from '../config.js';
 import * as db from '../services/db.js';
+import { PROBLEM_BANK } from '../data/problemSet.js';
 
 const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
@@ -10,11 +11,18 @@ const state = {
   absentPool: [],
   currentStudent: null,
   isReady: false,
+  currentLevel: 1, // Default to Level 1
 };
+
+// Tracks problem progression per level so they don't repeat immediately
+const problemIndexes = { 1: 0, 2: 0 };
 
 const elements = {
   nameDisplay: document.getElementById('student-name'),
   absenteeList: document.getElementById('absentee-list'),
+  questionText: document.getElementById('question-text'),
+  questionPrompt: document.getElementById('question-prompt'),
+  caseSelector: document.getElementById('case-selector'),
 };
 
 const canvas = document.getElementById('drawing-canvas');
@@ -105,7 +113,7 @@ function syncFromPayload(newData) {
     }
   }
 
-  // Sync Student Name (Authoritative)
+  // Sync Student Name & Problems
   if (newData.active_student_id) {
     const student = state.activePool.find(
       (s) => s.id === newData.active_student_id
@@ -115,12 +123,27 @@ function syncFromPayload(newData) {
       elements.nameDisplay.innerText = student.displayName;
     }
   }
+
+  // Sync Problem Text (if you choose to persist problem state later)
+  if (newData.current_problem_latex) {
+    elements.questionText.innerHTML = `\\(${newData.current_problem_latex}\\)`;
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise().catch((err) =>
+        console.log('MathJax error:', err)
+      );
+    } else {
+      console.warn('MathJax not loaded yet. Retrying in 500ms...');
+      setTimeout(() => {
+        if (window.MathJax) window.MathJax.typesetPromise();
+      }, 500);
+    }
+  }
 }
 
 async function loadRemoteState() {
   const { data, error } = await supabase
     .from('whiteboard_state')
-    .select('canvas_data, active_student_id')
+    .select('*')
     .eq('id', 1)
     .single();
 
@@ -134,6 +157,13 @@ async function init() {
   state.isReady = true;
   await syncAbsenteeUI();
   await loadRemoteState();
+
+  // Setup Level Selector
+  if (elements.caseSelector) {
+    elements.caseSelector.onchange = (e) => {
+      state.currentLevel = parseInt(e.target.value);
+    };
+  }
 
   // Realtime Listener
   supabase
@@ -152,24 +182,56 @@ async function init() {
 
 async function pickStudent() {
   if (state.activePool.length === 0 || !state.isReady) return;
+
+  // 1. Pick Student (Random)
   const picked =
     state.activePool[Math.floor(Math.random() * state.activePool.length)];
 
-  // We only update the DB; syncFromPayload handles the UI change for all devices
+  // 2. Pick Problem (Sequential from Bank)
+  const currentList = PROBLEM_BANK[state.currentLevel];
+  const currentIndex = problemIndexes[state.currentLevel];
+  const problem = currentList[currentIndex % currentList.length];
+
+  // Advance index for next time
+  problemIndexes[state.currentLevel]++;
+
+  // 3. Update UI Locally (Snappy response)
+  state.currentStudent = picked;
+  elements.nameDisplay.innerText = picked.displayName;
+  elements.questionText.innerHTML = `\\(${problem.latex}\\)`;
+  if (elements.questionPrompt)
+    elements.questionPrompt.innerText = problem.prompt;
+
+  if (window.MathJax && window.MathJax.typesetPromise) {
+    window.MathJax.typesetPromise().catch((err) =>
+      console.log('MathJax error:', err)
+    );
+  } else {
+    console.warn('MathJax not loaded yet. Retrying in 500ms...');
+    setTimeout(() => {
+      if (window.MathJax) window.MathJax.typesetPromise();
+    }, 500);
+  }
+
+  // 4. Update DB (Syncs other devices)
   await supabase
     .from('whiteboard_state')
     .update({
       active_student_id: picked.id,
+      current_problem_latex: problem.latex,
       updated_at: new Date().toISOString(),
     })
     .eq('id', 1);
+
+  // Auto-clear ink for new student
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
 async function handleResult(outcome) {
   if (!state.currentStudent) return;
   await db.recordAttemptAndGetStats(supabase, {
     student_id: state.currentStudent.id,
-    level: 1,
+    level: state.currentLevel,
     outcome,
   });
   state.activePool = await db.fetchPresentStudents(supabase);
