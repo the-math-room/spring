@@ -11,11 +11,11 @@ const state = {
   absentPool: [],
   currentStudent: null,
   isReady: false,
-  currentLevel: 1, // Default to Level 1
+  currentLevel: 1,
 };
 
 // Tracks problem progression per level so they don't repeat immediately
-const problemIndexes = { 1: 0, 2: 0 };
+const problemIndexes = {};
 
 const elements = {
   nameDisplay: document.getElementById('student-name'),
@@ -173,17 +173,24 @@ async function init() {
 async function pickStudent() {
   if (state.activePool.length === 0 || !state.isReady) return;
 
-  // 1. Pick Student (Random)
+  // 1. Pick Student
   const picked =
     state.activePool[Math.floor(Math.random() * state.activePool.length)];
 
-  // 2. Pick Problem (Sequential from Bank)
-  const currentList = PROBLEM_BANK[state.currentLevel];
-  const currentIndex = problemIndexes[state.currentLevel];
+  // 2. Safely Pick Problem (Sequential)
+  const level = state.currentLevel;
+  const currentList = PROBLEM_BANK[level];
+
+  // Initialize the index for this level if it's the first time we've used it
+  if (problemIndexes[level] === undefined) {
+    problemIndexes[level] = 0;
+  }
+
+  const currentIndex = problemIndexes[level];
   const problem = currentList[currentIndex % currentList.length];
 
-  // Advance index for next time
-  problemIndexes[state.currentLevel]++;
+  // Advance index
+  problemIndexes[level]++;
 
   // 3. Update UI Locally (Snappy response)
   state.currentStudent = picked;
