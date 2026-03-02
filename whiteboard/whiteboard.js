@@ -64,9 +64,15 @@ const start = (e) => {
 const draw = (e) => {
   if (!isDrawing) return;
   const pos = getPos(e);
+
+  // CRITICAL: Ensure we aren't calling setupCanvas() here!
+
   ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+
+  // When erasing, the 'color' doesn't matter, but the opacity does
   ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : penColor;
-  ctx.lineWidth = isEraser ? 60 : 4;
+  ctx.lineWidth = isEraser ? 80 : 4; // Make eraser nice and big
+
   ctx.lineTo(pos.x, pos.y);
   ctx.stroke();
 };
@@ -99,29 +105,17 @@ window.addEventListener('touchend', endDrawing);
 
 // --- 3. SYNC ENGINE (Multi-Device Logic) ---
 function syncFromPayload(newData) {
-  // Sync Ink
-  if (newData.canvas_data !== undefined) {
-    if (!newData.canvas_data || newData.canvas_data.length < 10) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    } else {
-      const img = new Image();
-      img.onload = () => {
+  // 1. Sync the Ink (Only if it's new data)
+  if (newData.canvas_data) {
+    const img = new Image();
+    img.onload = () => {
+      // ONLY clear and redraw if we AREN'T currently drawing ourselves
+      if (!isDrawing) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0);
-      };
-      img.src = newData.canvas_data;
-    }
-  }
-
-  // Sync Student Name & Problems
-  if (newData.active_student_id) {
-    const student = state.activePool.find(
-      (s) => s.id === newData.active_student_id
-    );
-    if (student && state.currentStudent?.id !== student.id) {
-      state.currentStudent = student;
-      elements.nameDisplay.innerText = student.displayName;
-    }
+      }
+    };
+    img.src = newData.canvas_data;
   }
 
   // Sync Problem Text (if you choose to persist problem state later)
@@ -166,6 +160,7 @@ async function init() {
   }
 
   // Realtime Listener
+  /*
   supabase
     .channel('whiteboard_sync')
     .on(
@@ -174,7 +169,7 @@ async function init() {
       (payload) => syncFromPayload(payload.new)
     )
     .subscribe();
-
+*/
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') loadRemoteState();
   });
