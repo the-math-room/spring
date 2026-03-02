@@ -4,30 +4,35 @@ import * as db from '../services/db.js';
 
 const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
-// --- 1. DRAWING ENGINE ---
+// --- 1. STATE & ELEMENTS ---
+const state = {
+  activePool: [],
+  absentPool: [],
+  currentStudent: null,
+  isReady: false,
+};
+
+const elements = {
+  nameDisplay: document.getElementById('student-name'),
+  absenteeList: document.getElementById('absentee-list'),
+};
+
 const canvas = document.getElementById('drawing-canvas');
 const ctx = canvas.getContext('2d');
 let isDrawing = false;
 let isEraser = false;
 let penColor = '#000000';
 
+// --- 2. DRAWING ENGINE ---
 function setupCanvas() {
-  // 1. Snapshot existing ink before the resize wipes the context
   const tempInk = canvas.toDataURL();
-
-  // 2. Adjust dimensions to match the new screen orientation
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
-
-  // 3. Re-apply styles (Context is reset when width/height change)
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // 4. Restore ink: stretched to fit the new aspect ratio
   const img = new Image();
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-  };
+  img.onload = () => ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
   img.src = tempInk;
 }
 
@@ -51,12 +56,9 @@ const start = (e) => {
 const draw = (e) => {
   if (!isDrawing) return;
   const pos = getPos(e);
-
-  // THE MAGIC: destination-out makes pixels transparent (erasing only ink)
   ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
   ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : penColor;
   ctx.lineWidth = isEraser ? 60 : 4;
-
   ctx.lineTo(pos.x, pos.y);
   ctx.stroke();
 };
@@ -64,7 +66,6 @@ const draw = (e) => {
 const endDrawing = async () => {
   if (isDrawing) {
     isDrawing = false;
-    // Save to database as a Base64 string
     const dataUrl = canvas.toDataURL();
     try {
       await db.saveCanvasState(supabase, dataUrl);
@@ -88,115 +89,80 @@ canvas.addEventListener(
 );
 window.addEventListener('touchend', endDrawing);
 
-// --- 2. TOOLBAR CONTROLS ---
-document.querySelectorAll('.color-btn').forEach((btn) => {
-  btn.onclick = () => {
-    isEraser = false;
-    penColor = btn.dataset.color;
-    document
-      .querySelectorAll('.color-btn, #eraser-btn')
-      .forEach((el) => el.classList.remove('active'));
-    btn.classList.add('active');
-  };
-});
-
-document.getElementById('eraser-btn').onclick = function () {
-  isEraser = true;
-  document
-    .querySelectorAll('.color-btn')
-    .forEach((el) => el.classList.remove('active'));
-  this.classList.add('active');
-};
-
-document.getElementById('clear-canvas').onclick = () => {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-};
-
-// --- 3. APP LOGIC ---
-const state = {
-  activePool: [],
-  absentPool: [],
-  currentStudent: null,
-  isReady: false,
-};
-const elements = {
-  nameDisplay: document.getElementById('student-name'),
-  absenteeList: document.getElementById('absentee-list'),
-};
-
-async function init() {
-  // 1. Get the latest roster & sync the benched list
-  state.activePool = await db.fetchPresentStudents(supabase);
-  state.isReady = true;
-  await syncAbsenteeUI();
-
-  // 2. Load the current "Reality" (Ink + Student) from the DB
-  // This replaces all that manual "savedInk" code at the bottom
-  await loadRemoteState();
-
-  // 3. Listen for changes from OTHER devices
-  supabase
-    .channel('whiteboard_sync')
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'whiteboard_state',
-      },
-      (payload) => {
-        console.log('Remote change detected!', payload.new);
-        syncFromPayload(payload.new);
-      }
-    )
-    .subscribe();
-}
-
-// Separate function to handle the visual update
+// --- 3. SYNC ENGINE (Multi-Device Logic) ---
 function syncFromPayload(newData) {
-  // 1. Sync the Ink
-  if (newData.canvas_data) {
-    const img = new Image();
-    img.onload = () => {
+  // Sync Ink
+  if (newData.canvas_data !== undefined) {
+    if (!newData.canvas_data || newData.canvas_data.length < 10) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0);
-    };
-    img.src = newData.canvas_data;
+    } else {
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = newData.canvas_data;
+    }
   }
 
-  // 2. Sync the Student Name
+  // Sync Student Name (Authoritative)
   if (newData.active_student_id) {
     const student = state.activePool.find(
       (s) => s.id === newData.active_student_id
     );
-    if (student) {
+    if (student && state.currentStudent?.id !== student.id) {
       state.currentStudent = student;
-      document.getElementById('student-name').innerText = student.displayName;
+      elements.nameDisplay.innerText = student.displayName;
     }
   }
 }
 
-async function pickStudent() {
-  if (state.activePool.length === 0) return;
+async function loadRemoteState() {
+  const { data, error } = await supabase
+    .from('whiteboard_state')
+    .select('canvas_data, active_student_id')
+    .eq('id', 1)
+    .single();
 
-  // Randomly pick local
+  if (error) return console.error('Initial load failed:', error);
+  if (data) syncFromPayload(data);
+}
+
+// --- 4. APP LOGIC ---
+async function init() {
+  state.activePool = await db.fetchPresentStudents(supabase);
+  state.isReady = true;
+  await syncAbsenteeUI();
+  await loadRemoteState();
+
+  // Realtime Listener
+  supabase
+    .channel('whiteboard_sync')
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'whiteboard_state' },
+      (payload) => syncFromPayload(payload.new)
+    )
+    .subscribe();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') loadRemoteState();
+  });
+}
+
+async function pickStudent() {
+  if (state.activePool.length === 0 || !state.isReady) return;
   const picked =
     state.activePool[Math.floor(Math.random() * state.activePool.length)];
 
-  // Update the Database (This triggers the Broadcast to other devices)
-  const { error } = await supabase
+  // We only update the DB; syncFromPayload handles the UI change for all devices
+  await supabase
     .from('whiteboard_state')
     .update({
       active_student_id: picked.id,
-      updated_at: new Date(),
+      updated_at: new Date().toISOString(),
     })
     .eq('id', 1);
-
-  if (error) console.error('Sync failed:', error);
-
-  // We update the local UI immediately so it feels snappy
-  state.currentStudent = picked;
-  document.getElementById('student-name').innerText = picked.displayName;
 }
 
 async function handleResult(outcome) {
@@ -209,42 +175,6 @@ async function handleResult(outcome) {
   state.activePool = await db.fetchPresentStudents(supabase);
   await syncAbsenteeUI();
   pickStudent();
-}
-
-async function loadRemoteState() {
-  const { data, error } = await supabase
-    .from('whiteboard_state')
-    .select('canvas_data, active_student_id')
-    .eq('id', 1)
-    .single();
-
-  if (error) {
-    console.error('Initial load failed:', error);
-    return;
-  }
-
-  if (data) {
-    // 1. Restore the Ink
-    if (data?.canvas_data && data.canvas_data.length > 10) {
-      const img = new Image();
-      img.onload = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0);
-      };
-      img.src = data.canvas_data;
-    }
-
-    // 2. Restore the Current Student
-    if (data.active_student_id) {
-      const student = state.activePool.find(
-        (s) => s.id === data.active_student_id
-      );
-      if (student) {
-        state.currentStudent = student;
-        document.getElementById('student-name').innerText = student.displayName;
-      }
-    }
-  }
 }
 
 async function syncAbsenteeUI() {
@@ -272,10 +202,48 @@ async function syncAbsenteeUI() {
   });
 }
 
-document.getElementById('btn-next-student').onclick = pickStudent;
-document.getElementById('btn-correct').onclick = () => handleResult('correct');
-document.getElementById('btn-incorrect').onclick = () =>
-  handleResult('incorrect');
-document.getElementById('btn-absent').onclick = () => handleResult('absent');
+// --- 5. TOOLBAR & CONTROLS ---
+document.querySelectorAll('.color-btn').forEach((btn) => {
+  btn.onclick = () => {
+    isEraser = false;
+    penColor = btn.dataset.color;
+    document
+      .querySelectorAll('.color-btn, #eraser-btn')
+      .forEach((el) => el.classList.remove('active'));
+    btn.classList.add('active');
+  };
+});
+
+document.getElementById('eraser-btn').onclick = function () {
+  isEraser = true;
+  document
+    .querySelectorAll('.color-btn')
+    .forEach((el) => el.classList.remove('active'));
+  this.classList.add('active');
+};
+
+const actionButtons = {
+  'btn-next-student': pickStudent,
+  'btn-correct': () => handleResult('correct'),
+  'btn-incorrect': () => handleResult('incorrect'),
+  'btn-absent': () => handleResult('absent'),
+  'clear-canvas': async () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    await supabase
+      .from('whiteboard_state')
+      .update({ canvas_data: '' })
+      .eq('id', 1);
+  },
+};
+
+Object.entries(actionButtons).forEach(([id, func]) => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      func();
+    });
+  }
+});
 
 init();

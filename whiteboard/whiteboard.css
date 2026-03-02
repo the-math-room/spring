@@ -90,8 +90,10 @@ html {
 }
 
 .hero-header {
-  pointer-events: auto;
-} /* Let you click names if needed */
+  pointer-events: none;
+}
+
+/* Let you click names if needed */
 #student-name {
   font-size: 5rem;
   color: #1e293b;
@@ -159,7 +161,9 @@ html {
   }
 
   .action-bar {
-    flex-wrap: wrap; /* Let buttons wrap to two rows if needed */
+    position: relative;
+    z-index: 100 !important; /* Force buttons to the absolute top */
+    pointer-events: auto !important;
   }
 }
 
@@ -177,6 +181,10 @@ html {
   align-items: center;
   text-align: center;
   padding: 20px;
+}
+
+#btn-next-student {
+  pointer-events: auto;
 }
 
 /* Show the overlay ONLY when the phone is held vertically (Portrait) */
