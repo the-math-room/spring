@@ -112,26 +112,78 @@ const elements = {
 };
 
 async function init() {
+  // 1. Get the latest roster & sync the benched list
   state.activePool = await db.fetchPresentStudents(supabase);
   state.isReady = true;
   await syncAbsenteeUI();
 
-  // NEW: Load the saved ink from the database
-  const savedInk = await db.fetchCanvasState(supabase);
-  if (savedInk) {
+  // 2. Load the current "Reality" (Ink + Student) from the DB
+  // This replaces all that manual "savedInk" code at the bottom
+  await loadRemoteState();
+
+  // 3. Listen for changes from OTHER devices
+  supabase
+    .channel('whiteboard_sync')
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'whiteboard_state',
+      },
+      (payload) => {
+        console.log('Remote change detected!', payload.new);
+        syncFromPayload(payload.new);
+      }
+    )
+    .subscribe();
+}
+
+// Separate function to handle the visual update
+function syncFromPayload(newData) {
+  // 1. Sync the Ink
+  if (newData.canvas_data) {
     const img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0);
-    img.src = savedInk;
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+    };
+    img.src = newData.canvas_data;
+  }
+
+  // 2. Sync the Student Name
+  if (newData.active_student_id) {
+    const student = state.activePool.find(
+      (s) => s.id === newData.active_student_id
+    );
+    if (student) {
+      state.currentStudent = student;
+      document.getElementById('student-name').innerText = student.displayName;
+    }
   }
 }
 
-function pickStudent() {
+async function pickStudent() {
   if (state.activePool.length === 0) return;
+
+  // Randomly pick local
   const picked =
     state.activePool[Math.floor(Math.random() * state.activePool.length)];
+
+  // Update the Database (This triggers the Broadcast to other devices)
+  const { error } = await supabase
+    .from('whiteboard_state')
+    .update({
+      active_student_id: picked.id,
+      updated_at: new Date(),
+    })
+    .eq('id', 1);
+
+  if (error) console.error('Sync failed:', error);
+
+  // We update the local UI immediately so it feels snappy
   state.currentStudent = picked;
-  elements.nameDisplay.innerText = picked.displayName;
-  // Optional: ctx.clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('student-name').innerText = picked.displayName;
 }
 
 async function handleResult(outcome) {
@@ -144,6 +196,42 @@ async function handleResult(outcome) {
   state.activePool = await db.fetchPresentStudents(supabase);
   await syncAbsenteeUI();
   pickStudent();
+}
+
+async function loadRemoteState() {
+  const { data, error } = await supabase
+    .from('whiteboard_state')
+    .select('canvas_data, active_student_id')
+    .eq('id', 1)
+    .single();
+
+  if (error) {
+    console.error('Initial load failed:', error);
+    return;
+  }
+
+  if (data) {
+    // 1. Restore the Ink
+    if (data.canvas_data) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = data.canvas_data;
+    }
+
+    // 2. Restore the Current Student
+    if (data.active_student_id) {
+      const student = state.activePool.find(
+        (s) => s.id === data.active_student_id
+      );
+      if (student) {
+        state.currentStudent = student;
+        document.getElementById('student-name').innerText = student.displayName;
+      }
+    }
+  }
 }
 
 async function syncAbsenteeUI() {
