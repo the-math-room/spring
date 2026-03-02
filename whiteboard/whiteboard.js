@@ -12,10 +12,23 @@ let isEraser = false;
 let penColor = '#000000';
 
 function setupCanvas() {
+  // 1. Snapshot existing ink before the resize wipes the context
+  const tempInk = canvas.toDataURL();
+
+  // 2. Adjust dimensions to match the new screen orientation
   canvas.width = canvas.offsetWidth;
   canvas.height = canvas.offsetHeight;
+
+  // 3. Re-apply styles (Context is reset when width/height change)
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
+
+  // 4. Restore ink: stretched to fit the new aspect ratio
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  };
+  img.src = tempInk;
 }
 
 window.addEventListener('resize', setupCanvas);
@@ -212,7 +225,7 @@ async function loadRemoteState() {
 
   if (data) {
     // 1. Restore the Ink
-    if (data.canvas_data) {
+    if (data?.canvas_data && data.canvas_data.length > 10) {
       const img = new Image();
       img.onload = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);

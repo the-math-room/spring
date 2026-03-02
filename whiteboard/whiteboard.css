@@ -162,3 +162,26 @@ html {
     flex-wrap: wrap; /* Let buttons wrap to two rows if needed */
   }
 }
+
+#rotate-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+  background: #1e293b;
+  color: white;
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 20px;
+}
+
+/* Show the overlay ONLY when the phone is held vertically (Portrait) */
+@media screen and (orientation: portrait) {
+  #rotate-overlay {
+    display: flex;
+  }
+}
