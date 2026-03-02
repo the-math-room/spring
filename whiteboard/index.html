@@ -9,44 +9,47 @@
 <body>
     <div id="whiteboard-container">
         <aside class="sidebar">
-            <div class="stat-card">
-                <h3>Class Confidence</h3>
-                <div id="confidence-interval">Ready</div>
+            <div class="toolbar-section">
+                <h3>Colors</h3>
+                <div class="color-picker">
+                    <button class="color-btn active" data-color="#000000" style="background: #000000;"></button>
+                    <button class="color-btn" data-color="#2563eb" style="background: #2563eb;"></button>
+                    <button class="color-btn" data-color="#dc2626" style="background: #dc2626;"></button>
+                    <button class="color-btn" data-color="#16a34a" style="background: #16a34a;"></button>
+                    <button class="color-btn" data-color="#9333ea" style="background: #9333ea;"></button>
+                    <button class="color-btn" data-color="#f97316" style="background: #f97316;"></button>
+                </div>
+                
+                <button id="eraser-btn" class="tool-btn">🧽 Eraser</button>
+                <button id="clear-canvas" class="tool-btn danger">🗑️ Clear Ink</button>
             </div>
 
             <div class="absence-management">
-                <h3>Marked Absent</h3>
-                <p class="hint">Tap to return to mix</p>
+                <h3>Benched</h3>
                 <ul id="absentee-list">
                     </ul>
             </div>
 
-            <div class="scaffolding-picker">
-                <button class="level-btn active" data-level="1">Lvl 1</button>
-                <button class="level-btn" data-level="2">Lvl 2</button>
-                <button class="level-btn" data-level="3">Lvl 3</button>
-            </div>
-
             <div class="sidebar-footer">
-                <a href="../index.html" class="exit-btn">🏠 Exit to Dashboard</a>
+                <a href="../index.html" class="exit-btn">🏠 Exit</a>
             </div>
         </aside>
 
         <main class="arena">
-            <div class="student-callout">
-                <span class="label">UP NEXT:</span>
-                <h1 id="student-name">Loading...</h1>
-                <button id="btn-next-student" class="btn-shuffle">🎲 Pick Student</button>
-            </div>
+            <canvas id="drawing-canvas"></canvas>
 
-            <div class="question-box">
-                <p id="question-text">Ready for the first question?</p>
-            </div>
+            <div class="content-overlay">
+                <div class="hero-text">
+                    <h1 id="student-name">Ready!</h1>
+                    <p id="question-text">Select Level to start</p>
+                </div>
 
-            <div class="action-bar">
-                <button class="btn correct" id="btn-correct">CORRECT</button>
-                <button class="btn incorrect" id="btn-incorrect">INCORRECT</button>
-                <button class="btn absent" id="btn-absent">ABSENT</button>
+                <div class="action-bar">
+                    <button id="btn-next-student" class="btn-shuffle">🎲 Next Student</button>
+                    <button class="btn correct" id="btn-correct">CORRECT</button>
+                    <button class="btn incorrect" id="btn-incorrect">INCORRECT</button>
+                    <button class="btn absent" id="btn-absent">ABSENT</button>
+                </div>
             </div>
         </main>
     </div>

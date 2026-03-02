@@ -4,158 +4,146 @@ import * as db from '../services/db.js';
 
 const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
+// --- 1. DRAWING ENGINE ---
+const canvas = document.getElementById('drawing-canvas');
+const ctx = canvas.getContext('2d');
+let isDrawing = false;
+let isEraser = false;
+let penColor = '#000000';
+
+function setupCanvas() {
+  canvas.width = canvas.offsetWidth;
+  canvas.height = canvas.offsetHeight;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+window.addEventListener('resize', setupCanvas);
+setupCanvas();
+
+const getPos = (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  return { x: clientX - rect.left, y: clientY - rect.top };
+};
+
+const start = (e) => {
+  isDrawing = true;
+  const pos = getPos(e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+};
+
+const draw = (e) => {
+  if (!isDrawing) return;
+  const pos = getPos(e);
+
+  // THE MAGIC: destination-out makes pixels transparent (erasing only ink)
+  ctx.globalCompositeOperation = isEraser ? 'destination-out' : 'source-over';
+  ctx.strokeStyle = isEraser ? 'rgba(0,0,0,1)' : penColor;
+  ctx.lineWidth = isEraser ? 60 : 4;
+
+  ctx.lineTo(pos.x, pos.y);
+  ctx.stroke();
+};
+
+const endDrawing = async () => {
+  if (isDrawing) {
+    isDrawing = false;
+    // Save to database as a Base64 string
+    const dataUrl = canvas.toDataURL();
+    try {
+      await db.saveCanvasState(supabase, dataUrl);
+    } catch (err) {
+      console.error('Failed to save ink:', err);
+    }
+  }
+};
+
+canvas.addEventListener('mousedown', start);
+canvas.addEventListener('mousemove', draw);
+window.addEventListener('mouseup', endDrawing);
+canvas.addEventListener('touchstart', start);
+canvas.addEventListener(
+  'touchmove',
+  (e) => {
+    e.preventDefault();
+    draw(e);
+  },
+  { passive: false }
+);
+window.addEventListener('touchend', endDrawing);
+
+// --- 2. TOOLBAR CONTROLS ---
+document.querySelectorAll('.color-btn').forEach((btn) => {
+  btn.onclick = () => {
+    isEraser = false;
+    penColor = btn.dataset.color;
+    document
+      .querySelectorAll('.color-btn, #eraser-btn')
+      .forEach((el) => el.classList.remove('active'));
+    btn.classList.add('active');
+  };
+});
+
+document.getElementById('eraser-btn').onclick = function () {
+  isEraser = true;
+  document
+    .querySelectorAll('.color-btn')
+    .forEach((el) => el.classList.remove('active'));
+  this.classList.add('active');
+};
+
+document.getElementById('clear-canvas').onclick = () => {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+};
+
+// --- 3. APP LOGIC ---
 const state = {
-  allStudents: [],
   activePool: [],
   absentPool: [],
   currentStudent: null,
-  level: 1,
   isReady: false,
 };
-
 const elements = {
   nameDisplay: document.getElementById('student-name'),
-  masteryDisplay: document.getElementById('confidence-interval'),
   absenteeList: document.getElementById('absentee-list'),
-  nextBtn: document.getElementById('btn-next-student'),
-  correctBtn: document.getElementById('btn-correct'),
-  incorrectBtn: document.getElementById('btn-incorrect'),
-  absentBtn: document.getElementById('btn-absent'),
-  levelBtns: document.querySelectorAll('.level-btn'),
 };
 
-/**
- * 1. INITIALIZATION
- * FIX: Now fetches present students so refreshes respect the "Bench".
- */
 async function init() {
-  try {
-    // We fetch the master roster for reference, but draw from present students
-    const [roster, present] = await Promise.all([
-      db.fetchStudents(supabase),
-      db.fetchPresentStudents(supabase),
-    ]);
+  state.activePool = await db.fetchPresentStudents(supabase);
+  state.isReady = true;
+  await syncAbsenteeUI();
 
-    if (!roster || roster.length === 0) {
-      elements.nameDisplay.innerText = 'Error: Roster Empty';
-      return;
-    }
-
-    state.allStudents = roster;
-    state.activePool = present;
-    state.isReady = true;
-
-    elements.nameDisplay.innerText = 'Ready!';
-
-    // Sync the sidebar UI to show who is currently benched on the server
-    await syncAbsenteeUI();
-  } catch (err) {
-    console.error('Init failed:', err);
-    elements.nameDisplay.innerText = `Error: ${err.message || 'Check Console'}`;
+  // NEW: Load the saved ink from the database
+  const savedInk = await db.fetchCanvasState(supabase);
+  if (savedInk) {
+    const img = new Image();
+    img.onload = () => ctx.drawImage(img, 0, 0);
+    img.src = savedInk;
   }
 }
 
-/**
- * 2. SELECTION LOGIC
- */
 function pickStudent() {
-  if (!state.isReady) return;
-  if (state.activePool.length === 0) {
-    elements.nameDisplay.innerText = 'All Students Absent';
-    return;
-  }
-
-  const randomIndex = Math.floor(Math.random() * state.activePool.length);
-  const picked = state.activePool[randomIndex];
-
+  if (state.activePool.length === 0) return;
+  const picked =
+    state.activePool[Math.floor(Math.random() * state.activePool.length)];
   state.currentStudent = picked;
-
-  elements.nameDisplay.classList.add('shuffling');
-  setTimeout(() => {
-    elements.nameDisplay.innerText = picked.displayName;
-    elements.nameDisplay.classList.remove('shuffling');
-  }, 150);
+  elements.nameDisplay.innerText = picked.displayName;
+  // Optional: ctx.clearRect(0, 0, canvas.width, canvas.height);
 }
 
-/**
- * 3. OUTCOME & ABSENCE HANDLING
- * FIX: Consolidated to use the record_and_smooth RPC for all outcomes.
- */
 async function handleResult(outcome) {
   if (!state.currentStudent) return;
-
-  const studentId = state.currentStudent.id;
-
-  // 1. Show a loading state to indicate we are waiting on the SERVER
-  elements.nameDisplay.innerText = 'Syncing...';
-  state.currentStudent = null;
-
-  try {
-    // 2. FORCE the server to process the result
-    await db.recordAttemptAndGetStats(supabase, {
-      student_id: studentId,
-      level: state.level,
-      outcome: outcome,
-    });
-
-    // 3. RE-FETCH the entire reality from the database
-    // This is the only way state.activePool gets updated.
-    state.activePool = await db.fetchPresentStudents(supabase);
-
-    // 4. Update the sidebar based on what the database says
-    await syncAbsenteeUI();
-
-    // 5. Only now do we pick the next student
-    pickStudent();
-  } catch (err) {
-    console.error('Server sync failed:', err);
-    alert('Database Error: Action not recorded.');
-    // Re-fetch to recover state
-    state.activePool = await db.fetchPresentStudents(supabase);
-    pickStudent();
-  }
-}
-
-// Ensure the listener is correct
-elements.absentBtn.onclick = () => handleResult('absent');
-
-/**
- * 4. ABSENCE MANAGEMENT (RE-SYNC)
- */
-function renderAbsenteeList() {
-  if (!elements.absenteeList) return;
-  elements.absenteeList.innerHTML = '';
-
-  state.absentPool.forEach((student) => {
-    const li = document.createElement('li');
-    const btn = document.createElement('button');
-    btn.innerText = student.preferred_name || student.first_name;
-    btn.className = 'restore-btn';
-    btn.onclick = () => restoreStudent(student.id);
-    li.appendChild(btn);
-    elements.absenteeList.appendChild(li);
+  await db.recordAttemptAndGetStats(supabase, {
+    student_id: state.currentStudent.id,
+    level: 1,
+    outcome,
   });
-}
-
-async function restoreStudent(studentId) {
-  try {
-    // Update the database presence flag
-    const { error } = await supabase
-      .from('students')
-      .update({ is_absent: false })
-      .eq('id', studentId);
-
-    if (error) throw error;
-
-    // Refresh everything
-    state.activePool = await db.fetchPresentStudents(supabase);
-    await syncAbsenteeUI();
-
-    console.log('Student restored.');
-  } catch (err) {
-    console.error('Failed to restore student:', err);
-    alert('Check connection: Could not un-bench student.');
-  }
+  state.activePool = await db.fetchPresentStudents(supabase);
+  await syncAbsenteeUI();
+  pickStudent();
 }
 
 async function syncAbsenteeUI() {
@@ -163,27 +151,30 @@ async function syncAbsenteeUI() {
     .from('students')
     .select('*')
     .eq('is_absent', true);
-
   state.absentPool = data || [];
-  renderAbsenteeList();
+  elements.absenteeList.innerHTML = '';
+  state.absentPool.forEach((s) => {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.innerText = s.preferred_name || s.first_name;
+    btn.className = 'restore-btn';
+    btn.onclick = async () => {
+      await supabase
+        .from('students')
+        .update({ is_absent: false })
+        .eq('id', s.id);
+      state.activePool = await db.fetchPresentStudents(supabase);
+      await syncAbsenteeUI();
+    };
+    li.appendChild(btn);
+    elements.absenteeList.appendChild(li);
+  });
 }
 
-/**
- * 5. EVENT LISTENERS
- */
-elements.nextBtn.onclick = pickStudent;
-elements.correctBtn.onclick = () => handleResult('correct');
-elements.incorrectBtn.onclick = () => handleResult('incorrect');
-elements.absentBtn.onclick = () => handleResult('absent'); // Consolidate to handleResult
-
-elements.levelBtns.forEach((btn) => {
-  btn.onclick = () => {
-    elements.levelBtns.forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-    state.level = parseInt(btn.dataset.level);
-    elements.nameDisplay.innerText = `Level ${state.level} Ready`;
-    state.currentStudent = null;
-  };
-});
+document.getElementById('btn-next-student').onclick = pickStudent;
+document.getElementById('btn-correct').onclick = () => handleResult('correct');
+document.getElementById('btn-incorrect').onclick = () =>
+  handleResult('incorrect');
+document.getElementById('btn-absent').onclick = () => handleResult('absent');
 
 init();

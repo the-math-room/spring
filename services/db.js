@@ -97,3 +97,23 @@ export const resetAllAttendance = async (supabase) => {
   }
   return true;
 };
+
+// Save the canvas string
+export const saveCanvasState = async (supabase, dataUrl) => {
+  const { error } = await supabase
+    .from('whiteboard_state')
+    .update({ canvas_data: dataUrl, updated_at: new Date() })
+    .eq('id', 1);
+  if (error) throw error;
+};
+
+// Load the canvas string
+export const fetchCanvasState = async (supabase) => {
+  const { data, error } = await supabase
+    .from('whiteboard_state')
+    .select('canvas_data')
+    .eq('id', 1)
+    .single();
+  if (error) throw error;
+  return data?.canvas_data;
+};
